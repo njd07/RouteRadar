@@ -5,17 +5,25 @@ let db;
 /** Lazy-initialise Firebase Admin + Firestore. */
 function initializeFirestore() {
   if (!admin.apps.length) {
-    // On Cloud Run, ADC is automatic.
-    // Locally, set GOOGLE_APPLICATION_CREDENTIALS env var.
-    admin.initializeApp({
-      credential: admin.credential.applicationDefault(),
-    });
+    try {
+      // On Cloud Run, ADC is automatic.
+      // Locally, set GOOGLE_APPLICATION_CREDENTIALS env var.
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+      });
+      db = admin.firestore();
+    } catch (error) {
+      console.warn('⚠️ Firestore initialization failed (missing serviceAccountKey.json?). Database operations will fail, but Gemini will still work.');
+      console.error(error.message);
+    }
+  } else {
+    db = admin.firestore();
   }
-  db = admin.firestore();
 }
 
 function getDb() {
   if (!db) initializeFirestore();
+  if (!db) throw new Error('Firestore is not initialized.');
   return db;
 }
 

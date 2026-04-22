@@ -37,9 +37,14 @@ router.post('/', async (req, res) => {
       createdAt: new Date().toISOString(),
     };
 
-    // Step 4 — Persist
-    await saveReport(report);
-    console.log(`✅ Report ${report.id} saved (score: ${report.overallScore})`);
+    // Step 4 — Persist (Optional for local testing without DB)
+    try {
+      await saveReport(report);
+      console.log(`✅ Report ${report.id} saved (score: ${report.overallScore})`);
+    } catch (dbError) {
+      console.error(`⚠️ Failed to save report to database (likely missing credentials). Report ID: ${report.id}`);
+      // We still return the report to the frontend so they can see the AI result!
+    }
 
     res.json(report);
   } catch (error) {
