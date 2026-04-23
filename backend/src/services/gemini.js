@@ -2,16 +2,28 @@ const OpenAI = require('openai');
 const { getParseChainPrompt } = require('../prompts/parseChain');
 const { getAnalyzeRiskPrompt } = require('../prompts/analyzeRisk');
 
-// ─── Client ───────────────────────────────────────────────────────────────────
+// ─── Client (Lazy Singleton) ─────────────────────────────────────────────────
 // Using OpenRouter to access Google's Gemma models for free
-const client = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: {
-    'HTTP-Referer': 'https://routeradar.app',
-    'X-Title': 'RouteRadar',
-  },
-});
+// Initialized lazily so Railway env vars are guaranteed to be available
+let _client = null;
+function getClient() {
+  if (!_client) {
+    const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      console.error('⚠️  WARNING: No OPENROUTER_API_KEY or OPENAI_API_KEY found in environment variables.');
+      console.error('   Available env vars:', Object.keys(process.env).filter(k => k.includes('KEY') || k.includes('API')).join(', ') || '(none with KEY/API)');
+    }
+    _client = new OpenAI({
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey: apiKey || 'dummy-key-will-fail-at-request-time',
+      defaultHeaders: {
+        'HTTP-Referer': 'https://routeradar.app',
+        'X-Title': 'RouteRadar',
+      },
+    });
+  }
+  return _client;
+}
 
 const MODEL = process.env.AI_MODEL || 'google/gemma-2-9b-it:free';
 
@@ -50,7 +62,7 @@ async function parseSupplyChain(description) {
 
   try {
     const completion = await withRetry(() =>
-      client.chat.completions.create({
+      getClient().chat.completions.create({
         model: MODEL,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.1,
@@ -77,7 +89,7 @@ async function analyzeRisks(segments) {
 
   try {
     const completion = await withRetry(() =>
-      client.chat.completions.create({
+      getClient().chat.completions.create({
         model: MODEL,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.2,
@@ -111,7 +123,7 @@ Answer what-if questions with specific, actionable insights referencing segment 
 
   try {
     const completion = await withRetry(() =>
-      client.chat.completions.create({
+      getClient().chat.completions.create({
         model: MODEL,
         messages,
         temperature: 0.5,

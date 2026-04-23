@@ -14,11 +14,11 @@ import ScoreBreakdown from '../components/ScoreBreakdown';
 import ChatPanel from '../components/ChatPanel';
 
 function buildStats(report) {
-  const highSegs = report.segments.filter(s => s.segmentScore > 50).length;
-  const critSegs = report.segments.filter(s => s.segmentScore > 75).length;
+  const highSegs = (report.segments || []).filter(s => s.segmentScore > 50).length;
+  const critSegs = (report.segments || []).filter(s => s.segmentScore > 75).length;
   const impact   = report.estimatedImpact || 'N/A - Volume Required';
   return [
-    { label: 'Active Risks',        value: report.vulnerabilities.length,   sub: 'High Impact',      color: '#EF4444', trend: [3,5,4,7,6,8,7,9,8,10] },
+    { label: 'Active Risks',        value: (report.vulnerabilities || []).length,   sub: 'High Impact',      color: '#EF4444', trend: [3,5,4,7,6,8,7,9,8,10] },
     { label: 'At-Risk Shipments',   value: highSegs,                         sub: 'Critical Window',  color: '#F97316', trend: [2,3,2,4,3,5,4,6,5,7] },
     { label: 'Disrupted Suppliers', value: critSegs,                         sub: 'Require Attention',color: '#EAB308', trend: [1,2,1,3,2,4,3,5,4,6] },
     { label: 'Estimated Impact',    value: impact,                           sub: 'Potential Loss',   color: '#3B82F6', trend: [5,4,6,5,7,6,8,7,9,8] },
@@ -74,7 +74,7 @@ export default function Dashboard() {
               <p className="text-xs font-semibold text-white">Risk Radar ⓘ</p>
               <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.15)', color: '#3B82F6' }}>Probability</span>
             </div>
-            <RiskRadarChart segments={r.segments} />
+            <RiskRadarChart segments={r.segments || []} />
           </div>
 
           {/* Score Gauge + Breakdown */}
@@ -86,7 +86,7 @@ export default function Dashboard() {
             <div className="flex justify-center">
               <ScoreGauge score={r.overallScore} />
             </div>
-            <ScoreBreakdown segments={r.segments} />
+            <ScoreBreakdown segments={r.segments || []} />
           </div>
         </div>
 
@@ -95,7 +95,7 @@ export default function Dashboard() {
           {/* Risk Heatmap */}
           <div className="card p-5">
             <p className="text-xs font-semibold text-white mb-3">Risk Heatmap</p>
-            <RiskHeatmap segments={r.segments} />
+            <RiskHeatmap segments={r.segments || []} />
           </div>
 
           {/* Recent Alerts */}
@@ -104,21 +104,21 @@ export default function Dashboard() {
               <p className="text-xs font-semibold text-white">Recent Alerts</p>
               <button className="text-xs" style={{ color: '#3B82F6' }}>View All</button>
             </div>
-            <RecentAlerts vulnerabilities={r.vulnerabilities} createdAt={r.createdAt} />
+            <RecentAlerts vulnerabilities={r.vulnerabilities || []} createdAt={r.createdAt} />
           </div>
         </div>
 
         {/* Segments + Recommendations */}
         <div className="grid grid-cols-2 gap-4">
           <div className="card p-5">
-            <p className="text-xs font-semibold text-white mb-3">Supply Chain Segments ({r.segments.length})</p>
+            <p className="text-xs font-semibold text-white mb-3">Supply Chain Segments ({(r.segments || []).length})</p>
             <div className="space-y-2">
-              {r.segments.map((seg, i) => <SegmentCard key={i} segment={seg} index={i} />)}
+              {(r.segments || []).map((seg, i) => <SegmentCard key={i} segment={seg} index={i} />)}
             </div>
           </div>
           <div className="space-y-4">
-            <VulnerabilityList vulnerabilities={r.vulnerabilities} />
-            <RecommendationList recommendations={r.recommendations} />
+            <VulnerabilityList vulnerabilities={r.vulnerabilities || []} />
+            <RecommendationList recommendations={r.recommendations || []} />
           </div>
         </div>
       </div>
