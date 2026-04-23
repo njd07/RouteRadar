@@ -39,7 +39,7 @@ RouteRadar lets you describe your supply chain in plain English and instantly re
 
 ### 1. Clone the repo
 ```bash
-git clone https://github.com/YOUR_USERNAME/RouteRadar.git
+git clone https://github.com/njd07/RouteRadar.git
 cd RouteRadar
 ```
 
