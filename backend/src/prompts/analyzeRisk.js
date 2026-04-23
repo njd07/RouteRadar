@@ -1,86 +1,59 @@
 /**
- * Response schema for Vertex AI structured output.
- * Follows the OpenAPI 3.0 subset supported by Gemini.
- */
-const reportResponseSchema = {
-  type: 'OBJECT',
-  properties: {
-    overallScore: {
-      type: 'NUMBER',
-      description: 'Overall supply chain risk score from 0 (no risk) to 100 (extreme risk)',
-    },
-    riskLevel: {
-      type: 'STRING',
-      enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
-      description: 'Categorical risk level',
-    },
-    segments: {
-      type: 'ARRAY',
-      description: 'Risk analysis per supply chain segment',
-      items: {
-        type: 'OBJECT',
-        properties: {
-          from: { type: 'STRING' },
-          to: { type: 'STRING' },
-          mode: { type: 'STRING', enum: ['sea', 'air', 'road', 'rail', 'multimodal'] },
-          product: { type: 'STRING' },
-          risks: {
-            type: 'OBJECT',
-            properties: {
-              geopolitical: { type: 'NUMBER', description: 'Score 1-10' },
-              weather: { type: 'NUMBER', description: 'Score 1-10' },
-              infrastructure: { type: 'NUMBER', description: 'Score 1-10' },
-              supplierDependency: { type: 'NUMBER', description: 'Score 1-10' },
-              regulatory: { type: 'NUMBER', description: 'Score 1-10' },
-            },
-            required: ['geopolitical', 'weather', 'infrastructure', 'supplierDependency', 'regulatory'],
-          },
-          segmentScore: { type: 'NUMBER', description: 'Segment risk score 0-100' },
-          summary: { type: 'STRING', description: '2 sentence risk summary for this segment' },
-        },
-        required: ['from', 'to', 'mode', 'product', 'risks', 'segmentScore', 'summary'],
-      },
-    },
-    vulnerabilities: {
-      type: 'ARRAY',
-      description: 'Top 5 specific vulnerabilities',
-      items: { type: 'STRING' },
-    },
-    recommendations: {
-      type: 'ARRAY',
-      description: 'Top 5 actionable recommendations',
-      items: { type: 'STRING' },
-    },
-    industryContext: {
-      type: 'STRING',
-      description: 'Paragraph about industry-typical risks for this supply chain',
-    },
-  },
-  required: ['overallScore', 'riskLevel', 'segments', 'vulnerabilities', 'recommendations', 'industryContext'],
-};
-
-/**
- * Prompt template for comprehensive risk analysis.
+ * Prompt for Step 2: comprehensive risk analysis.
+ * JSON structure is enforced natively by Gemini's responseSchema,
+ * so this prompt focuses on scoring logic and real-time news integration.
  */
 function getAnalyzeRiskPrompt(segments) {
-  return `You are a senior global supply chain risk consultant. Analyze the following supply chain segments and provide a comprehensive risk assessment.
+  return `You are a senior global supply chain risk consultant with 20 years of experience.
 
-Score each risk dimension from 1 (lowest risk) to 10 (highest risk).
-Calculate an overall risk score from 0 to 100.
-Assign a riskLevel: LOW (0-25), MEDIUM (26-50), HIGH (51-75), CRITICAL (76-100).
+Analyze the supply chain segments below and generate a comprehensive risk report.
 
-Base your analysis on real-world knowledge of:
-- Geopolitical tensions, sanctions, and trade conflicts
-- Weather patterns, climate risks, and natural disaster exposure
-- Infrastructure quality, port congestion, and transport reliability
-- Supplier concentration and single-source dependency risks
-- Regulatory compliance, customs complexity, and trade barriers
+SCORING RULES:
+- overallScore: 0-25 = LOW, 26-50 = MEDIUM, 51-75 = HIGH, 76-100 = CRITICAL
+- riskLevel must match overallScore range exactly
+- Risk dimensions are scored 1-10 based on real-world knowledge of:
+  * geopolitical: active conflicts, sanctions, political instability on this route
+  * weather: seasonal weather risk, natural disaster history for this geography
+  * infrastructure: port congestion, road quality, customs efficiency
+  * supplierDependency: single-source risk, concentration risk
+  * regulatory: trade restrictions, tariffs, border complexity
+- segmentScore: weighted average of the 5 risk dimensions × 10
+- estimatedImpact: If no cargo value is specified, output "N/A - Volume Required". If commodity type is known, give a proportionate range (e.g. "$10k–$50k for agricultural byproducts"). Never invent a specific large number without justification.
+- CRITICAL: Each segment may contain a "realTimeNews" field with live news headlines. You MUST incorporate any disruptions, strikes, conflicts, or weather events mentioned in these headlines into your segment scores and your vulnerabilities/recommendations lists. This is what makes the analysis real-time.
+- Provide EXACTLY 5 vulnerabilities and EXACTLY 5 recommendations
+- vulnerabilities should be specific to these exact routes and products
+- recommendations should be actionable and specific
 
-Provide exactly 5 specific vulnerabilities and 5 specific actionable recommendations.
-Include a paragraph of industry context about typical risks for this type of supply chain.
+CRITICAL INSTRUCTION: You must respond ONLY with raw, valid JSON. Do not include markdown formatting, backticks (\`\`\`json), or any conversational text outside of the JSON object. The JSON must exactly match this structure:
 
-Supply Chain Segments:
+{
+  "overallScore": <number 0-100>,
+  "riskLevel": "<LOW|MEDIUM|HIGH|CRITICAL>",
+  "estimatedImpact": "<string>",
+  "segments": [
+    {
+      "from": "<string>",
+      "to": "<string>",
+      "mode": "<string>",
+      "product": "<string>",
+      "risks": {
+        "geopolitical": <number 1-10>,
+        "weather": <number 1-10>,
+        "infrastructure": <number 1-10>,
+        "supplierDependency": <number 1-10>,
+        "regulatory": <number 1-10>
+      },
+      "segmentScore": <number 0-100>,
+      "summary": "<2 sentence risk summary>"
+    }
+  ],
+  "vulnerabilities": ["<string>", "<string>", "<string>", "<string>", "<string>"],
+  "recommendations": ["<string>", "<string>", "<string>", "<string>", "<string>"],
+  "industryContext": "<paragraph>"
+}
+
+Supply Chain Segments (may include real-time news context):
 ${JSON.stringify(segments, null, 2)}`;
 }
 
-module.exports = { getAnalyzeRiskPrompt, reportResponseSchema };
+module.exports = { getAnalyzeRiskPrompt };

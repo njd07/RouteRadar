@@ -1,56 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ── Global Resets ── */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
   font-family: 'Inter', system-ui, sans-serif;
+  background: #060D1A;
+  color: #E2E8F0;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Custom Scrollbar ── */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #475569;
-  border-radius: 3px;
-}
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1E3A5F; border-radius: 2px; }
 
-/* ── Animations ── */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes pulse-ring {
-  0%   { transform: scale(0.8); opacity: 1; }
-  100% { transform: scale(1.4); opacity: 0; }
+  0%   { transform: scale(0.85); opacity: 1; }
+  100% { transform: scale(1.4);  opacity: 0; }
 }
+@keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+@keyframes spark  { from { stroke-dashoffset: 200; } to { stroke-dashoffset: 0; } }
 
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+.animate-fade-in    { animation: fadeIn 0.4s ease-out forwards; }
+.animate-pulse-ring { animation: pulse-ring 1.5s cubic-bezier(0.4,0,0.6,1) infinite; }
+.animate-spin-slow  { animation: spin-slow 3s linear infinite; }
+.animate-blink      { animation: blink 2s ease-in-out infinite; }
+
+/* Card glass */
+.card {
+  background: #0D1B2E;
+  border: 1px solid rgba(59,130,246,0.12);
+  border-radius: 12px;
 }
-
-.animate-fade-in {
-  animation: fadeIn 0.4s ease-out forwards;
-}
-
-.animate-pulse-ring {
-  animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-.animate-spin-slow {
-  animation: spin-slow 3s linear infinite;
+.card-hover:hover {
+  border-color: rgba(59,130,246,0.35);
+  box-shadow: 0 0 20px rgba(59,130,246,0.08);
+  transition: all 0.2s;
 }

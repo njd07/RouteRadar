@@ -23,8 +23,7 @@ function initializeFirestore() {
 
 function getDb() {
   if (!db) initializeFirestore();
-  if (!db) throw new Error('Firestore is not initialized.');
-  return db;
+  return db; // May still be undefined if initialization failed
 }
 
 // ──────────────────────────────────────────────
@@ -36,7 +35,13 @@ function getDb() {
  * Uses the report.id as the document ID.
  */
 async function saveReport(report) {
-  const docRef = getDb().collection('reports').doc(report.id);
+  const database = getDb();
+  if (!database) {
+    console.warn('⚠️ Mock mode: Report not saved because Firestore is not configured.');
+    return report;
+  }
+  
+  const docRef = database.collection('reports').doc(report.id);
   await docRef.set({
     ...report,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -49,7 +54,10 @@ async function saveReport(report) {
  * Converts Firestore Timestamps to ISO strings.
  */
 async function getReport(id) {
-  const doc = await getDb().collection('reports').doc(id).get();
+  const database = getDb();
+  if (!database) return null;
+
+  const doc = await database.collection('reports').doc(id).get();
   if (!doc.exists) return null;
 
   const data = doc.data();
@@ -66,7 +74,10 @@ async function getReport(id) {
  * List all reports (latest first), returning a summary projection.
  */
 async function listReports() {
-  const snapshot = await getDb()
+  const database = getDb();
+  if (!database) return []; // Return empty history if DB not configured
+
+  const snapshot = await database
     .collection('reports')
     .orderBy('createdAt', 'desc')
     .limit(50)
@@ -95,7 +106,10 @@ async function listReports() {
 // ──────────────────────────────────────────────
 
 async function saveChatMessage(reportId, message) {
-  await getDb()
+  const database = getDb();
+  if (!database) return; // Silent return if DB not configured
+
+  await database
     .collection('reports')
     .doc(reportId)
     .collection('chatMessages')

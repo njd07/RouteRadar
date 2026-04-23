@@ -25,8 +25,15 @@ router.post('/', async (req, res) => {
     console.log('⏳ Parsing supply chain description…');
     const segments = await parseSupplyChain(description);
 
+    // Step 1.5 — Fetch real-time context
+    console.log(`⏳ Fetching real-time news for segments…`);
+    const { getRealTimeContext } = require('../services/search');
+    for (const segment of segments) {
+      segment.realTimeNews = await getRealTimeContext(segment.from, segment.to, segment.mode);
+    }
+
     // Step 2 — Analyse
-    console.log(`⏳ Analysing ${segments.length} segments…`);
+    console.log(`⏳ Analysing ${segments.length} segments with real-time data…`);
     const analysis = await analyzeRisks(segments);
 
     // Step 3 — Build report

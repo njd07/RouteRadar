@@ -1,91 +1,128 @@
-const { GoogleGenAI } = require('@google/genai');
-
+const OpenAI = require('openai');
 const { getParseChainPrompt } = require('../prompts/parseChain');
-const { getAnalyzeRiskPrompt, reportResponseSchema } = require('../prompts/analyzeRisk');
+const { getAnalyzeRiskPrompt } = require('../prompts/analyzeRisk');
 
-// Initialise once at module load — API key from env
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const MODEL = 'gemini-2.5-flash';
+// ─── Client ───────────────────────────────────────────────────────────────────
+// Using OpenRouter to access Google's Gemma models for free
+const client = new OpenAI({
+  baseURL: 'https://openrouter.ai/api/v1',
+  apiKey: process.env.OPENROUTER_API_KEY,
+  defaultHeaders: {
+    'HTTP-Referer': 'https://routeradar.app',
+    'X-Title': 'RouteRadar',
+  },
+});
 
-// ──────────────────────────────────────────────
-// Step 1 — Parse supply chain description
-// ──────────────────────────────────────────────
+const MODEL = process.env.AI_MODEL || 'google/gemma-2-9b-it:free';
+
+// ─── Exponential Backoff Retry Wrapper ────────────────────────────────────────
+async function withRetry(fn, maxRetries = 3) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const isRateLimit = err?.message?.includes('429') || err?.status === 429;
+      const isLast = attempt === maxRetries;
+      if (isRateLimit && !isLast) {
+        const delay = Math.pow(2, attempt + 1) * 2000; 
+        console.log(`⚠️  Rate limited. Retrying in ${delay / 1000}s… (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise(r => setTimeout(r, delay));
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
+// ─── Helper: Clean JSON ───────────────────────────────────────────────────────
+// Open-weights models sometimes wrap JSON in markdown blocks despite instructions
+function cleanJson(text) {
+  let cleaned = text.trim();
+  if (cleaned.startsWith('```json')) cleaned = cleaned.replace(/^```json/, '');
+  if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```/, '');
+  if (cleaned.endsWith('```')) cleaned = cleaned.replace(/```$/, '');
+  return cleaned.trim();
+}
+
+// ─── Step 1: Parse Supply Chain Description ───────────────────────────────────
 async function parseSupplyChain(description) {
   const prompt = getParseChainPrompt(description);
 
   try {
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: prompt,
-      config: {
-        temperature: 0.3,
-        responseMimeType: 'application/json',
-      },
-    });
+    const completion = await withRetry(() =>
+      client.chat.completions.create({
+        model: MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+      })
+    );
 
-    const text = response.text;
-    return JSON.parse(text);
-  } catch (error) {
-    console.error('Gemini parseSupplyChain error:', error);
-    throw new Error(`Failed to parse supply chain: ${error.message}`);
+    const text = completion.choices[0].message.content;
+    const parsed = JSON.parse(cleanJson(text));
+
+    if (Array.isArray(parsed)) return parsed;
+    if (Array.isArray(parsed.segments)) return parsed.segments;
+    const firstArr = Object.values(parsed).find(v => Array.isArray(v));
+    if (firstArr) return firstArr;
+    throw new Error('Could not extract segments from response');
+  } catch (err) {
+    console.error('OpenRouter parseSupplyChain error:', err.message);
+    throw new Error(`Failed to parse supply chain: ${err.message}`);
   }
 }
 
-// ──────────────────────────────────────────────
-// Step 2 — Analyse risks with structured output
-// ──────────────────────────────────────────────
+// ─── Step 2: Analyse Risks ────────────────────────────────────────────────────
 async function analyzeRisks(segments) {
   const prompt = getAnalyzeRiskPrompt(segments);
 
   try {
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: prompt,
-      config: {
-        temperature: 0.3,
-        responseMimeType: 'application/json',
-        responseSchema: reportResponseSchema,
-      },
-    });
+    const completion = await withRetry(() =>
+      client.chat.completions.create({
+        model: MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.2,
+      })
+    );
 
-    const text = response.text;
-    return JSON.parse(text);
-  } catch (error) {
-    console.error('Gemini analyzeRisks error:', error);
-    throw new Error(`Failed to analyze risks: ${error.message}`);
+    const text = completion.choices[0].message.content;
+    return JSON.parse(cleanJson(text));
+  } catch (err) {
+    console.error('OpenRouter analyzeRisks error:', err.message);
+    throw new Error(`Failed to analyze risks: ${err.message}`);
   }
 }
 
-// ──────────────────────────────────────────────
-// Chat — what-if scenario conversations
-// ──────────────────────────────────────────────
+// ─── Chat ─────────────────────────────────────────────────────────────────────
 async function chatWithContext(report, history, message) {
-  const systemInstruction = `You are RouteRadar AI, a supply chain risk expert. The user's supply chain has been analyzed with an overall risk score of ${report.overallScore}/100 (${report.riskLevel}). Their supply chain has ${report.segments.length} segments: ${report.segments.map((s) => `${s.from} → ${s.to} via ${s.mode}`).join(', ')}. Key vulnerabilities: ${report.vulnerabilities.join('; ')}. Answer their what-if questions with specific insights. Reference specific segments and risk scores. Be concise.`;
+  const systemPrompt = `You are RouteRadar AI, a supply chain risk expert. 
+The user's supply chain has an overall risk score of ${report.overallScore}/100 (${report.riskLevel}).
+Segments: ${report.segments.map(s => `${s.from} → ${s.to} via ${s.mode}`).join(', ')}.
+Key vulnerabilities: ${(report.vulnerabilities || []).join('; ')}.
+Answer what-if questions with specific, actionable insights referencing segment scores. Be concise.`;
 
-  // Build multi-turn contents array from history + new message
-  const contents = [
-    ...history.map((msg) => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }],
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...history.map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'assistant',
+      content: msg.content,
     })),
-    { role: 'user', parts: [{ text: message }] },
+    { role: 'user', content: message },
   ];
 
   try {
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents,
-      config: {
-        systemInstruction,
+    const completion = await withRetry(() =>
+      client.chat.completions.create({
+        model: MODEL,
+        messages,
         temperature: 0.5,
-        maxOutputTokens: 1024,
-      },
-    });
+        max_tokens: 1024,
+      })
+    );
 
-    return response.text;
-  } catch (error) {
-    console.error('Gemini chat error:', error);
-    throw new Error(`Failed to process chat: ${error.message}`);
+    return completion.choices[0].message.content;
+  } catch (err) {
+    console.error('OpenRouter chat error:', err.message);
+    throw new Error(`Failed to process chat: ${err.message}`);
   }
 }
 

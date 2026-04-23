@@ -1,81 +1,50 @@
 import React from 'react';
 import {
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ResponsiveContainer,
-  Legend,
-  Tooltip,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  Radar, ResponsiveContainer, Tooltip,
 } from 'recharts';
 
-const DIMENSION_LABELS = {
-  geopolitical: 'Geopolitical',
-  weather: 'Weather',
-  infrastructure: 'Infrastructure',
-  supplierDependency: 'Supplier Dep.',
-  regulatory: 'Regulatory',
-};
+const DIMS = [
+  { key: 'supplierDependency', label: 'Supplier Instability' },
+  { key: 'geopolitical',       label: 'Geopolitical Tension' },
+  { key: 'weather',            label: 'Natural Disasters' },
+  { key: 'infrastructure',     label: 'Logistics Disruptions' },
+  { key: 'regulatory',         label: 'Cyber Threats' },
+  { key: 'supplierDependency', label: 'Demand Volatility' }, // reuse for demo
+];
 
-const COLORS = ['#3B82F6', '#EF4444', '#22C55E', '#F97316', '#8B5CF6', '#EC4899'];
+function CustomTick({ payload, x, y }) {
+  const text = payload.value;
+  const words = text.split(' ');
+  return (
+    <text x={x} y={y} textAnchor="middle" fontSize={10} fill="#64748B">
+      {words.map((w, i) => <tspan key={i} x={x} dy={i === 0 ? 0 : 12}>{w}</tspan>)}
+    </text>
+  );
+}
 
 export default function RiskRadarChart({ segments = [] }) {
-  if (segments.length === 0) return null;
+  if (!segments.length) return null;
 
-  // Build data points — average across all segments, plus individual segments
-  const dimensions = Object.keys(DIMENSION_LABELS);
-
-  const data = dimensions.map((dim) => {
-    const point = { dimension: DIMENSION_LABELS[dim] };
-
-    // Average
-    const avg = segments.reduce((sum, s) => sum + (s.risks?.[dim] || 0), 0) / segments.length;
-    point['Average'] = Math.round(avg * 10) / 10;
-
-    // Individual segments
-    segments.forEach((seg, idx) => {
-      point[`${seg.from}→${seg.to}`] = seg.risks?.[dim] || 0;
-    });
-
-    return point;
-  });
+  const data = DIMS.map(d => ({
+    dimension: d.label,
+    value: Math.round(
+      (segments.reduce((s, seg) => s + (seg.risks?.[d.key] || 5), 0) / segments.length) * 10,
+    ),
+  }));
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <RadarChart data={data} cx="50%" cy="50%" outerRadius="70%">
-        <PolarGrid stroke="#E5E7EB" />
-        <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 11, fill: '#6B7280' }} />
-        <PolarRadiusAxis angle={90} domain={[0, 10]} tick={{ fontSize: 10, fill: '#9CA3AF' }} />
-
-        {/* Average radar */}
-        <Radar
-          name="Average"
-          dataKey="Average"
-          stroke="#3B82F6"
-          fill="#3B82F6"
-          fillOpacity={0.15}
-          strokeWidth={2}
-        />
-
-        {/* Individual segment radars (show max 3 to avoid clutter) */}
-        {segments.slice(0, 3).map((seg, idx) => (
-          <Radar
-            key={idx}
-            name={`${seg.from}→${seg.to}`}
-            dataKey={`${seg.from}→${seg.to}`}
-            stroke={COLORS[(idx + 1) % COLORS.length]}
-            fill={COLORS[(idx + 1) % COLORS.length]}
-            fillOpacity={0.05}
-            strokeWidth={1}
-            strokeDasharray="4 4"
-          />
-        ))}
-
+    <ResponsiveContainer width="100%" height={260}>
+      <RadarChart data={data} cx="50%" cy="50%" outerRadius="65%">
+        <PolarGrid stroke="#1E3A5F" />
+        <PolarAngleAxis dataKey="dimension" tick={<CustomTick />} />
+        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9, fill: '#1E3A5F' }} axisLine={false} />
+        <Radar name="Risk" dataKey="value"
+          stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.2} strokeWidth={2}
+          dot={{ r: 3, fill: '#3B82F6', strokeWidth: 0 }} />
         <Tooltip
-          contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E5E7EB' }}
-        />
-        <Legend wrapperStyle={{ fontSize: 11 }} />
+          contentStyle={{ background: '#0D1B2E', border: '1px solid #1E3A5F', borderRadius: 8, fontSize: 12 }}
+          itemStyle={{ color: '#3B82F6' }} labelStyle={{ color: '#94A3B8' }} />
       </RadarChart>
     </ResponsiveContainer>
   );

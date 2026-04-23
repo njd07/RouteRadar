@@ -12,93 +12,64 @@ export default function History() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchReports();
+    getReports()
+      .then(setReports)
+      .catch(() => setError('Failed to load history. Firestore may not be configured yet.'))
+      .finally(() => setLoading(false));
   }, []);
 
-  const fetchReports = async () => {
+  const load = async (id) => {
     try {
-      const data = await getReports();
-      setReports(data);
-    } catch (err) {
-      console.error(err);
-      setError('Failed to load report history.');
-    } finally {
-      setLoading(false);
-    }
+      const r = await getReportById(id);
+      setCurrentReport(r); resetChat(); navigate('/dashboard');
+    } catch { setError('Failed to load report.'); }
   };
 
-  const handleLoadReport = async (id) => {
-    try {
-      const report = await getReportById(id);
-      setCurrentReport(report);
-      resetChat();
-      navigate('/dashboard');
-    } catch (err) {
-      console.error(err);
-      setError('Failed to load report.');
-    }
-  };
-
-  const getScoreColor = (score) => {
-    if (score <= 25) return 'text-risk-low';
-    if (score <= 50) return 'text-risk-medium';
-    if (score <= 75) return 'text-risk-high';
-    return 'text-risk-critical';
-  };
+  const scoreColor = s => s > 75 ? '#EF4444' : s > 50 ? '#F97316' : s > 25 ? '#EAB308' : '#22C55E';
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Report History</h1>
-      <p className="text-sm text-gray-500 mb-8">View and load your past supply chain analyses.</p>
+    <div className="p-6 max-w-3xl mx-auto">
+      <h1 className="text-xl font-bold text-white mb-1">Report History</h1>
+      <p className="text-xs mb-8" style={{ color: '#475569' }}>View and reload past supply chain analyses.</p>
 
       {loading && (
         <div className="text-center py-20">
-          <div className="w-8 h-8 border-4 border-accent-blue border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-sm text-gray-500">Loading reports…</p>
+          <div className="w-8 h-8 rounded-full mx-auto mb-3 animate-spin-slow"
+            style={{ border: '3px solid #1E3A5F', borderTopColor: '#3B82F6' }} />
+          <p className="text-sm" style={{ color: '#475569' }}>Loading reports…</p>
         </div>
       )}
 
-      {error && <p className="text-sm text-risk-critical mb-4">{error}</p>}
+      {error && <p className="text-xs mb-4 px-4 py-3 rounded-xl" style={{ color: '#F97316', background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)' }}>{error}</p>}
 
-      {!loading && reports.length === 0 && (
+      {!loading && !error && reports.length === 0 && (
         <div className="text-center py-20">
-          <div className="text-5xl mb-4">📋</div>
-          <h2 className="text-xl font-semibold text-gray-700">No Reports Yet</h2>
-          <p className="mt-2 text-gray-500">Analyze a supply chain to create your first report.</p>
-          <button
-            onClick={() => navigate('/')}
-            className="mt-4 bg-accent-blue hover:bg-accent-blue-hover text-white font-semibold py-2 px-5 rounded-lg transition-colors"
-          >
-            Analyze Now
-          </button>
+          <div className="text-4xl mb-4">📋</div>
+          <p className="text-lg font-semibold text-white mb-2">No Reports Yet</p>
+          <p className="text-sm mb-4" style={{ color: '#475569' }}>Analyze a supply chain to create your first report.</p>
+          <button onClick={() => navigate('/')}
+            className="px-5 py-2 rounded-lg text-sm font-semibold text-white"
+            style={{ background: '#3B82F6' }}>Analyze Now</button>
         </div>
       )}
 
-      <div className="space-y-4">
-        {reports.map((report) => (
-          <button
-            key={report.id}
-            id={`report-${report.id}`}
-            onClick={() => handleLoadReport(report.id)}
-            className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-accent-blue/30 transition-all p-5 group"
-          >
+      <div className="space-y-3">
+        {reports.map(r => (
+          <button key={r.id} onClick={() => load(r.id)}
+            className="w-full text-left card card-hover p-5 transition-all group">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-2">
-                  <span className={`text-2xl font-bold ${getScoreColor(report.overallScore)}`}>
-                    {report.overallScore}
-                  </span>
-                  <RiskBadge level={report.riskLevel} />
-                  {report.segmentCount > 0 && (
-                    <span className="text-xs text-gray-400">{report.segmentCount} segments</span>
-                  )}
+                  <span className="text-2xl font-bold" style={{ color: scoreColor(r.overallScore) }}>{r.overallScore}</span>
+                  <RiskBadge level={r.riskLevel} />
+                  <span className="text-xs" style={{ color: '#334155' }}>{r.segmentCount} segments</span>
                 </div>
-                <p className="text-sm text-gray-600 truncate">{report.rawDescription}</p>
-                <p className="text-xs text-gray-400 mt-1.5">
-                  {report.createdAt ? new Date(report.createdAt).toLocaleString() : '—'}
+                <p className="text-xs truncate" style={{ color: '#64748B' }}>{r.rawDescription}</p>
+                <p className="text-xs mt-1.5" style={{ color: '#334155' }}>
+                  {r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}
                 </p>
               </div>
-              <span className="text-gray-300 group-hover:text-accent-blue transition-colors text-xl mt-1">→</span>
+              <span className="text-xl mt-1 group-hover:translate-x-1 transition-transform" style={{ color: '#1E3A5F' }}>→</span>
             </div>
           </button>
         ))}

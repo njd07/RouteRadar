@@ -1,110 +1,126 @@
-# RouteRadar — AI-Powered Supply Chain Risk Intelligence
+# 🛰️ RouteRadar — AI-Powered Supply Chain Risk Intelligence
 
-> Know Your Risk Before It Knows You
+> **Google Solution Challenge 2025 Project**
 
-RouteRadar lets users describe their supply chain in plain English and receive comprehensive AI-powered risk analysis, interactive what-if scenario chat, and a full report history.
+RouteRadar lets you describe your supply chain in plain English and instantly receive a comprehensive AI-powered risk analysis: interactive risk visualizations, real-time news grounding, vulnerability insights, and an AI what-if chat assistant.
 
-## Architecture
+[![Built with Gemma 4](https://img.shields.io/badge/Built%20with-Gemma%204-4285F4?style=flat&logo=google)](https://ai.google.dev)
+[![Backend: Railway](https://img.shields.io/badge/Backend-Railway-0B0D0E?style=flat&logo=railway)](https://railway.app)
+[![Frontend: Firebase](https://img.shields.io/badge/Frontend-Firebase%20Hosting-FFA000?style=flat&logo=firebase)](https://firebase.google.com)
 
+---
+
+## ✨ Features
+
+- **Plain-English Input** — Describe your supply chain in natural language
+- **Google Gemma 4 AI Analysis** — Powered by Google's open-weights Gemma model via OpenRouter
+- **Real-Time News Grounding** — Automatically fetches live news (Google News RSS) and factors current disruptions into risk scores
+- **Interactive Dashboard** — Score Gauge, Risk Radar Chart, World Heatmap, Segment breakdown
+- **What-If Chat** — Ask the AI scenario questions about your specific supply chain
+- **Report History** — Browse and reload past analyses (requires Firestore)
+
+---
+
+## 🧱 Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **AI** | Google Gemma 4 (`google/gemma-4-26b-a4b-it:free`) via OpenRouter |
+| **Real-Time Data** | Google News RSS (no key required) |
+| **Backend** | Node.js + Express |
+| **Database** | Google Cloud Firestore (Firebase Admin SDK) |
+| **Frontend** | React 18 + Tailwind CSS + Recharts |
+| **Backend Deploy** | Railway |
+| **Frontend Deploy** | Firebase Hosting |
+
+---
+
+## 🚀 Local Development
+
+### 1. Clone the repo
+```bash
+git clone https://github.com/YOUR_USERNAME/RouteRadar.git
+cd RouteRadar
 ```
-┌─────────────┐       ┌──────────────────┐       ┌────────────────┐
-│   React +   │ Axios │  Express.js API   │  SDK  │  Google AI     │
-│  Tailwind   │◄─────►│  (Railway)        │◄─────►│  Studio        │
-│   Frontend  │       │                  │       │  Gemini 1.5 Pro│
-└─────────────┘       └───────┬──────────┘       └────────────────┘
-                              │
-                              │ firebase-admin
-                              ▼
-                      ┌──────────────────┐
-                      │   Firestore      │
-                      │  (reports +      │
-                      │   chat history)  │
-                      └──────────────────┘
-```
 
-## Tech Stack
-
-| Layer      | Technology                          |
-|------------|-------------------------------------|
-| Frontend   | React 18 + Tailwind CSS + Recharts  |
-| Backend    | Node.js + Express.js                |
-| AI         | Gemini 1.5 Pro via Google AI Studio |
-| Database   | Cloud Firestore                     |
-| Deployment | Firebase Hosting + Railway          |
-
-## Quick Start (Local Development)
-
-### Prerequisites
-
-- Node.js ≥ 18
-- A free Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
-- A Firebase project with Firestore enabled + a service account JSON key
-
-### Backend
-
+### 2. Set up the backend
 ```bash
 cd backend
+npm install
 cp .env.example .env
-# Edit .env: set GEMINI_API_KEY and GOOGLE_APPLICATION_CREDENTIALS
-npm install
+# Edit .env and add your GEMINI_API_KEY
 npm run dev
 ```
 
-The API server starts at `http://localhost:8080`.
-
-### Frontend
-
+### 3. Set up the frontend
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-The dev server starts at `http://localhost:5173`. API calls are proxied to the backend automatically.
+Open [http://localhost:5173](http://localhost:5173).
 
-## API Endpoints
+---
 
-| Method | Endpoint           | Description                          |
-|--------|--------------------|--------------------------------------|
-| POST   | `/api/analyze`     | Analyze a supply chain description   |
-| POST   | `/api/chat`        | What-if chat with report context     |
-| GET    | `/api/reports`     | List all saved reports               |
-| GET    | `/api/reports/:id` | Get a specific report by ID          |
-| GET    | `/health`          | Health check                         |
+## 🔑 Environment Variables
 
-## Deployment
+### Backend (`backend/.env`)
 
-### Backend → Railway
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `OPENROUTER_API_KEY` | Free OpenRouter Key → [openrouter.ai](https://openrouter.ai) | **Yes** |
+| `AI_MODEL` | Default: `google/gemma-4-26b-a4b-it:free` | Optional |
+| `GOOGLE_SEARCH_API_KEY` | Google Custom Search API key (for news grounding) | Optional |
+| `GOOGLE_SEARCH_CX` | Custom Search Engine ID | Optional |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to Firebase service account JSON | Optional (for history) |
+| `PORT` | Server port (default: 8080) | No |
+| `FRONTEND_URL` | Frontend URL for CORS | No |
 
-1. Go to [railway.app](https://railway.app) and log in with GitHub.
-2. Click **New Project** → **Deploy from GitHub repo**.
-3. Select this repository (`RouteRadar`).
-4. Railway will auto-detect Node.js and run `npm start`.
-5. In the Railway dashboard, go to **Variables** and add:
-   - `GEMINI_API_KEY` — your Google AI Studio key
-   - `GOOGLE_APPLICATION_CREDENTIALS` — paste the **contents** of the JSON key (as a secret file or env var, depending on Railway plan)
-   - `FRONTEND_URL` — your deployed frontend URL (for CORS)
-6. Copy the public Railway URL (e.g. `https://routeradar-backend.up.railway.app`) and give it to the frontend team for their `.env` file.
+> The app works without `GOOGLE_APPLICATION_CREDENTIALS` — it just won't persist reports to Firestore.
 
-### Frontend → Firebase Hosting
+---
 
-```bash
-cd frontend
-npm run build
-firebase deploy --only hosting
+## 📁 Project Structure
+
+```
+RouteRadar/
+├── backend/
+│   ├── src/
+│   │   ├── services/
+│   │   │   ├── gemini.js        # Gemini AI integration (parse + analyze + chat)
+│   │   │   ├── search.js        # Google News RSS real-time data
+│   │   │   └── firestore.js     # Firestore report persistence
+│   │   ├── prompts/
+│   │   │   ├── parseChain.js    # Prompt: extract segments from description
+│   │   │   └── analyzeRisk.js   # Prompt: score risks + recommendations
+│   │   ├── routes/
+│   │   │   ├── analyze.js       # POST /api/analyze
+│   │   │   ├── chat.js          # POST /api/chat/:reportId
+│   │   │   └── reports.js       # GET /api/reports
+│   │   ├── app.js
+│   │   └── server.js
+│   ├── .env.example
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── components/          # Dashboard UI components
+│   │   ├── pages/               # Home, Dashboard, History
+│   │   ├── context/             # ReportContext (global state)
+│   │   └── services/api.js      # Axios API calls
+│   └── package.json
+├── DEPLOYMENT.md                # 👈 Deployment guide for teammate
+└── README.md
 ```
 
-## Environment Variables
+---
 
-### Backend (`.env`)
+## 🤝 Deployment
 
-| Variable | Description |
-|----------|-------------|
-| `GEMINI_API_KEY` | API key from [Google AI Studio](https://aistudio.google.com/app/apikey) |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to Firebase service account JSON key |
-| `PORT` | Server port (Railway sets this automatically) |
-| `FRONTEND_URL` | Frontend origin for CORS (e.g. `http://localhost:5173`) |
+See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for the full step-by-step guide covering Railway (backend) and Firebase Hosting (frontend).
 
-## License
+---
 
-MIT
+## 👥 Team
+
+Built for the **Google Solution Challenge 2025**.

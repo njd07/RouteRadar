@@ -4,25 +4,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        navy: {
-          900: '#0F172A',
-          800: '#1E293B',
-          700: '#334155',
-        },
-        accent: {
-          blue: '#3B82F6',
-          'blue-hover': '#2563EB',
-        },
+        bg:      '#060D1A',
+        surface: '#0D1B2E',
+        border:  '#1E3A5F',
+        accent:  '#3B82F6',
+        'accent-hover': '#2563EB',
         risk: {
           critical: '#EF4444',
-          high: '#F97316',
-          medium: '#EAB308',
-          low: '#22C55E',
+          high:     '#F97316',
+          medium:   '#EAB308',
+          low:      '#22C55E',
         },
       },
-      fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-      },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
     },
   },
   plugins: [],
